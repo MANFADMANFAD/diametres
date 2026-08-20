@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculateur de Diamètre Forestier</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 { color: #2c5e3b; margin-top: 0; }
+        button {
+            background-color: #2c5e3b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        button.recording {
+            background-color: #d9534f;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        .result-box {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c5e3b;
+        }
+        .list-box {
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 6px;
+            background: #fafafa;
+            text-align: left;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Calcul Diamètre Moy.</h2>
+    <p style="font-size: 14px; color: #666;">Dictez vos chiffres à la suite. Dites <strong>"Moyenne"</strong> pour stopper et calculer.</p>
+    
+    <button id="micBtn" onclick="toggleListening()">Démarrer l'écoute</button>
+    
+    <div class="result-box" id="displayMoyenne">Moyenne : -</div>
+    
+    <div class="list-box" id="listValeurs">
+        <strong>Relevés :</strong>
+        <ul id="valeursUl" style="margin: 5px 0 0 20px; padding: 0;"></ul>
+    </div>
+    
+    <button onclick="resetData()" style="background-color: #6c757d; padding: 10px; font-size: 14px; margin-top: 15px;">Effacer / Recommencer</button>
+</div>
+
+<script>
+    let valeurs = [];
+    let recognition;
+    let isListening = false;
+
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert("La reconnaissance vocale n'est pas supportée par ce navigateur. Utilisez Google Chrome.");
+    } else {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'fr-FR';
+        recognition.continuous = true;
+        recognition.interimResults = false;
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+            console.log("Entendu : " + transcript);
+
+            if (transcript.includes("moyenne") || transcript.includes("fin")) {
+                stopListening();
+                calculerMoyenne();
+                return;
+            }
+
+            // Extraction des nombres prononcés
+            const nombresTrouves = transcript.match(/\d+/g);
+            if (nombresTrouves) {
+                nombresTrouves.forEach(num => {
+                    valeurs.push(parseFloat(num));
+                });
+                mettreAJourAffichage();
+            }
+        };
+
+        recognition.onerror = function(event) {
+            console.error("Erreur vocale :", event.error);
+        };
+
+        recognition.onend = function() {
+            if (isListening) {
+                recognition.start(); // Redémarrage automatique si l'écoute est toujours active
+            }
+        };
+    }
+
+    function toggleListening() {
+        if (!recognition) return;
+        const btn = document.getElementById('micBtn');
+
+        if (isListening) {
+            stopListening();
+        } else {
+            valeurs = [];
+            mettreAJourAffichage();
+            document.getElementById('displayMoyenne').innerText = "Moyenne : En écoute...";
+            recognition.start();
+            isListening = true;
+            btn.innerText = "Arrêter / Calculer";
+            btn.classList.add('recording');
+        }
+    }
+
+    function stopListening() {
+        if (isListening && recognition) {
+            recognition.stop();
+            isListening = false;
+            const btn = document.getElementById('micBtn');
+            btn.innerText = "Démarrer l'écoute";
+            btn.classList.remove('recording');
+        }
+    }
+
+    function mettreAJourAffichage() {
+        const ul = document.getElementById('valeursUl');
+        ul.innerHTML = '';
+        valeurs.forEach((val, index) => {
+            let li = document.createElement('li');
+            li.innerText = `Arbre ${index + 1} : ${val} cm`;
+            ul.appendChild(li);
+        });
+    }
+
+    function calculerMoyenne() {
+        if (valeurs.length === 0) {
+            document.getElementById('displayMoyenne').innerText = "Aucune valeur enregistrée";
+            return;
+        }
+        let somme = valeurs.reduce((acc, curr) => acc + curr, 0);
+        let moyenne = somme / valeurs.length;
+        document.getElementById('displayMoyenne').innerText = `Moyenne : ${moyenne.toFixed(1)} cm`;
+    }
+
+    function resetData() {
+        stopListening();
+        valeurs = [];
+        mettreAJourAffichage();
+        document.getElementById('displayMoyenne').innerText = "Moyenne : -";
+    }
+</script>
+
+</body>
+</html>
